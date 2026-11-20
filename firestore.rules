@@ -1,0 +1,21 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    // Change this email to the same STAFF_EMAIL you put in index.html
+    function isStaff() { return signedIn() && request.auth.token.email == "nuriftyayuni@gmail.com"; }
+
+    match /orders/{uid} {
+      // Staff read everything; a customer reads only their own order
+      allow read: if isStaff() || (signedIn() && request.auth.uid == uid);
+      // A customer can place a new order (status 1) or confirm pickup (3 -> 4)
+      allow create: if signedIn() && request.auth.uid == uid
+                    && request.resource.data.status == 1;
+      allow update: if isStaff()
+                    || (signedIn() && request.auth.uid == uid
+                        && (request.resource.data.status == 1
+                            || (resource.data.status == 3 && request.resource.data.status == 4)));
+      allow delete: if isStaff();
+    }
+  }
+}
